@@ -5,4 +5,8 @@ data set : http://storage.googleapis.com/download.tensorflow.org/data/mini_speec
 ### Data Preprocessing
 #### 1) split data into train, test and val
 rename the unzip folder (/mini_speech_commands) as /data/train. after executing **split_train_val_test** function it will create 2 more directories 
-(/data/val and /data/test) which contain train, test and validation splitted data from all classes. 
+(/data/val and /data/test) which contain train, test and validation splitted data from all classes.
+
+#### 2) encode audio file to tensor 
+using **tf.io.read_file(filename)** each audio file needs to be convert into binary audio data file. then the binary file can be decode into a tensor using 
+**tf.audio.decode_wav(audio_binary)**
