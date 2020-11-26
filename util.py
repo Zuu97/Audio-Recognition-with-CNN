@@ -12,6 +12,7 @@ import tensorflow as tf
 from variables import*
 
 np.random.seed(seed)
+autotune = tf.data.experimental.AUTOTUNE
 
 def get_class_labels():
     return os.listdir(train_dir)
@@ -62,9 +63,55 @@ def get_filenames(data_dir):
     return filenames
 
 def get_label_from_filename(filename):
+    # return tf.strings.split(filename, os.path.sep)[-2]
     return os.path.split(filename)[-2]
 
 def decode_audio(filename):
     audio_binary = tf.io.read_file(filename)
     audio, sample_rate = tf.audio.decode_wav(audio_binary)
     return tf.squeeze(audio, axis=-1)
+
+def get_waveform_and_label(filename):
+    label = get_label_from_filename(filename)
+    audio_data = decode_audio(filename)
+    return audio_data, label
+
+def get_spectrum(audio):
+    padding = tf.zeros(
+                    [audio_tensor_length] - tf.shape(audio), 
+                    dtype=tf.float32
+                    )
+
+    audio = tf.cast(audio, tf.float32)
+    padded = tf.concat([audio, padding], 0)
+    spectrum = tf.signal.stft(
+                            padded, 
+                            frame_length=frame_length, 
+                            frame_step=frame_step
+                            )
+    return tf.abs(spectrum)
+
+def encode_labels(label):
+    all_labels = np.array(get_class_labels())
+    return tf.argmax(label == all_labels)
+
+def get_inputs_and_outputs(filename):
+    audio, label = get_waveform_and_label(filename)
+    spectrum = get_spectrum(audio)
+    spectrum = tf.expand_dims(spectrum, -1) # Add channel Dimension
+    # label = encode_labels(label)
+    return spectrum, tf.convert_to_tensor(label, dtype=tf.string)
+
+def create_data_split(data_dir, autotune=autotune):
+    filenames = get_filenames(data_dir)
+    data_files  = tf.data.Dataset.from_tensor_slices(filenames)
+    data_split = data_files.map(get_inputs_and_outputs,  num_parallel_calls=autotune)
+    return data_split
+
+def load_data():
+    train_data = create_data_split(train_dir)
+    val_data = create_data_split(val_dir)
+    test_data = create_data_split(test_dir)
+    print(list(test_data)[0])
+
+load_data()
